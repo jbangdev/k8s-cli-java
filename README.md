@@ -1,6 +1,6 @@
 # k8s-cli-java project
 
-This project is an example of how to extend kubernetes cli (kubectl) with a Java application.  It demonstrates the use of Kubernetes [client-java](https://github.com/kubernetes-client/java) and access the Kubernetes API.  In order to be a kubectl plugin it is necessary to have a file which uses the defined naming convention of `kube-<plugin-name>`.  This is a challenge in Java, but can be done with `jbang`. In order to provide a good CLI experience [picocli](https://picocli.info/) is used.
+This project is an example of how to extend kubernetes cli (kubectl) with a Java application.  It demonstrates the use of Kubernetes [client-java](https://github.com/kubernetes-client/java) and access the Kubernetes API.  In order to be a kubectl plugin it is necessary to have a file which uses the defined naming convention of `kubectl-<plugin-name>`.  This is a challenge in Java, but can be done with `jbang`. In order to provide a good CLI experience [picocli](https://picocli.info/) is used.
 
 ## Prerequisites
 
@@ -42,8 +42,6 @@ ________________________________________________________________
 * resources
 
 ## Adding as a kubectl plugin
-
-NOTE: due to a bug in jbang 0.15 this does not work right now but will soon.
 
 The executable needs to be the path.  From the root of the project run: `export PATH=$PATH:$PWD`
 

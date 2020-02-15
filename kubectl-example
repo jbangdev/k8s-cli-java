@@ -1,4 +1,4 @@
-//usr/bin/env jbang "$0" "$@" ; exit $?
+#!/usr/bin/env jbang
 // client-java for k8s
 //DEPS io.kubernetes:client-java:5.0.0
 // pico for cli
@@ -36,14 +36,14 @@ import static picocli.CommandLine.Model.*;
         },
         mixinStandardHelpOptions=true
 )
-public class KubeExample implements Callable<Integer> {
+public class KubectlExample implements Callable<Integer> {
 
     @Spec
     CommandSpec cmd;
 
     public static void main(String[] args) {
 
-        int exitCode = new CommandLine(new KubeExample()).execute(args);
+        int exitCode = new CommandLine(new KubectlExample()).execute(args);
         System.exit(exitCode);
     }
 
