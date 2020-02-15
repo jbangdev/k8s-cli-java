@@ -5,7 +5,7 @@ This project is an example of how to extend kubernetes cli (kubectl) with a Java
 ## Prerequisites
 
 * Running Kubernetes 1.15+ cluster.  [Kind 0.7.0](https://github.com/kubernetes-sigs/kind) was used for testing.
-* Java 1.8 and Graal
+* Java 1.8 and [jbang 0.16+](https://github.com/maxandersen/jbang)
 
 ## Getting Started
 
