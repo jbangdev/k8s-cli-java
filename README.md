@@ -43,6 +43,8 @@ ________________________________________________________________
 
 ## Adding as a kubectl plugin
 
+NOTE: due to a bug in jbang 0.15 this does not work right now but will soon.
+
 The executable needs to be the path.  From the root of the project run: `export PATH=$PATH:$PWD`
 
 Now give `kubectl` a try with `example`.  run: `kubectl example pod list`
