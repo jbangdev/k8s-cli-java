@@ -1,10 +1,17 @@
-#!/usr/bin/env jbang
+//#!/usr/bin/env jbang
+// when editing comment out the line above to avoid errors in IDE's.
+// Necessity to have it as kubectl don't recognize it as a script otherwise.
+// See https://github.com/kubernetes/kubectl/issues/822
+
 // client-java for k8s
 //DEPS io.kubernetes:client-java:5.0.0
 // pico for cli
 //DEPS info.picocli:picocli:4.1.4
 // text output table
 //DEPS com.massisframework:j-text-utils:0.3.4
+// to quiet down log4j
+//DEPS org.slf4j:slf4j-nop:1.7.30
+
 
 import dnl.utils.text.table.TextTable;
 import io.kubernetes.client.ApiClient;
@@ -36,34 +43,59 @@ import static picocli.CommandLine.Model.*;
         },
         mixinStandardHelpOptions=true
 )
-public class KubectlExample implements Callable<Integer> {
-
-    @Spec
-    CommandSpec cmd;
+public class KubectlExample extends Base {
 
     public static void main(String[] args) {
-
         int exitCode = new CommandLine(new KubectlExample()).execute(args);
         System.exit(exitCode);
     }
 
     @Override
-    public Integer call() throws Exception {
+    public Integer call() {
         cmd.commandLine().usage(cmd.commandLine().getOut());
-        return 0;
+        return ExitCode.OK;
+    }
+}
+
+abstract class Base implements Callable<Integer> {
+
+    @Spec CommandSpec cmd;
+
+    java.io.PrintWriter out() {
+        return cmd.commandLine().getOut();
+    }
+    ApiClient client;
+
+    ApiClient getClient() {
+        if(client!=null) return client;
+
+        try {
+            client = Config.defaultClient();
+            Configuration.setDefaultApiClient(client);
+        } catch (IOException e) {
+            throw new IllegalStateException("Unable to get cluster configuration", e);
+        }
+        return client;
     }
 }
 
 @Command(
         name = "pod",
         description = "Programmatically accesses pods in a k8s with 'add', 'list' and 'list2'",
+        mixinStandardHelpOptions = true,
         subcommands = {
                 PodAddCommand.class,
                 PodListCommand.class,
                 PodList2Command.class
         }
 )
-class PodCommand {
+class PodCommand extends Base {
+
+    @Override
+    public Integer call() {
+        cmd.commandLine().usage(cmd.commandLine().getOut());
+        return ExitCode.USAGE;
+    }
 }
 
 
@@ -71,7 +103,7 @@ class PodCommand {
         name = "add",
         description = "Adds a pod to a k8s cluster"
 )
-class PodAddCommand implements Runnable {
+class PodAddCommand extends Base {
 
     @Parameters(index = "0")
     String name;
@@ -83,19 +115,9 @@ class PodAddCommand implements Runnable {
     String namespace = "default";
 
     @Override
-    public void run() {
-        ApiClient client;
+    public Integer call() {
         try {
-            client = Config.defaultClient();
-            Configuration.setDefaultApiClient(client);
-        } catch (IOException e) {
-            System.out.println("Unable to get cluster configuration");
-            System.err.println(e);
-            return;
-        }
-
-        try {
-            CoreV1Api api = new CoreV1Api(client);
+            CoreV1Api api = new CoreV1Api(getClient());
             Map<String, String> labels = new HashMap<>();
             labels.put("app", "demo");
             V1Pod pod = new V1PodBuilder()
@@ -112,12 +134,12 @@ class PodAddCommand implements Runnable {
                     .build();
 
             api.createNamespacedPod(namespace, pod, null, null, null);
+            return ExitCode.OK;
 
         } catch (ApiException e) {
-            System.out.println("unable to get pod list");
-            System.err.println(e);
-            return;
+            throw new IllegalStateException("unable to get pod list", e);
         }
+
     }
 }
 
@@ -125,24 +147,15 @@ class PodAddCommand implements Runnable {
         name = "list2",
         description = "lists pods in the cluster using the protoclient approach"
 )
-class PodList2Command implements Runnable {
+class PodList2Command extends Base {
 
     @Option(names = {"-n", "--namespace"}, description = "namespace to use for getting pods")
     String namespace = "default";
 
     @Override
-    public void run() {
+    public Integer call() {
 
-        ProtoClient pc;
-        try {
-            ApiClient client = Config.defaultClient();
-            Configuration.setDefaultApiClient(client);
-            pc = new ProtoClient(client);
-        } catch (IOException e) {
-            System.out.println("Unable to get cluster configuration");
-            System.err.println(e);
-            return;
-        }
+        ProtoClient pc =  new ProtoClient(getClient());
 
         ProtoClient.ObjectOrStatus<V1.PodList> list;
         try {
@@ -150,16 +163,15 @@ class PodList2Command implements Runnable {
             list = pc.list(V1.PodList.newBuilder(), path);
 
         } catch (ApiException | IOException e) {
-            System.out.println("unable to get pod list");
-            System.err.println(e);
-            return;
+            throw new IllegalStateException("unable to get pod list", e);
         }
 
         if (list.object.getItemsList().size() < 1) {
-            System.out.println("No Pods found");
+            out().println("No Pods found");
         } else {
             printTable(list.object);
         }
+        return ExitCode.OK;
     }
 
     private void printTable(V1.PodList podList) {
@@ -188,18 +200,16 @@ class PodList2Command implements Runnable {
         name = "list",
         description = "lists pods in the cluster using a structured approach"
 )
-class PodListCommand implements Runnable {
-    @Override
-    public void run() {
+class PodListCommand extends Base {
 
+    @Override
+    public Integer call() {
         ApiClient client;
         try {
             client = Config.defaultClient();
             Configuration.setDefaultApiClient(client);
         } catch (IOException e) {
-            System.out.println("Unable to get cluster configuration");
-            System.err.println(e);
-            return;
+            throw new IllegalStateException("Unable to get cluster configuration", e);
         }
 
         V1PodList list;
@@ -207,16 +217,16 @@ class PodListCommand implements Runnable {
             CoreV1Api api = new CoreV1Api(client);
             list = api.listPodForAllNamespaces(null, null, null, null, null, null, null, null, null);
         } catch (ApiException e) {
-            System.out.println("unable to get pod list");
-            System.err.println(e);
-            return;
+            throw new IllegalStateException("unable to get pod list", e);
         }
 
         if (list.getItems().size() < 1) {
-            System.out.println("No Pods found");
+            out().println("No Pods found");
         } else {
             printTable(list);
         }
+
+        return ExitCode.OK;
     }
 
     /**
@@ -245,38 +255,27 @@ class PodListCommand implements Runnable {
         name = "resources",
         description = "lists resources in the k8s cluster"
 )
-class ResourcesCommand implements Runnable {
+class ResourcesCommand extends Base {
 
     @Override
-    public void run() {
-
-        ApiClient client;
-        try {
-            client = Config.defaultClient();
-            Configuration.setDefaultApiClient(client);
-        } catch (IOException e) {
-            System.out.println("Unable to get cluster configuration");
-            System.err.println(e);
-            return;
-        }
+    public Integer call() {
 
         V1APIResourceList list;
         try {
-            CoreV1Api api = new CoreV1Api(client);
+            CoreV1Api api = new CoreV1Api(getClient());
             list = api.getAPIResources();
 
         } catch (ApiException e) {
-            System.out.println("unable to get resource list");
-            System.err.println(e);
-            return;
+            throw new IllegalStateException("unable to get resource list", e);
         }
 
-
         if (list.getResources().size() < 1) {
-            System.out.println("No resources found");
+            out().println("No resources found");
         } else {
             printTable(list.getResources());
         }
+
+        return ExitCode.OK;
     }
 
     private void printTable(List<V1APIResource> resources) {
